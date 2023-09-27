@@ -1,3 +1,5 @@
+#include <string.h>
+#include <errno.h>
 #include "ipc.h"
 #include "process.h"
 
@@ -54,7 +56,10 @@ int send_multicast(void * self, const Message * msg){
  */
 int receive(void * self, local_id from, Message * msg){
     ProcessDescription * pd = (ProcessDescription *) self;
-    if (read(pd->pipes[from][pd->ld].read, msg, MAX_MESSAGE_LEN) == -1) {
+    int read_bytes = read(pd->pipes[from][pd->ld].read, msg, MAX_MESSAGE_LEN);
+    if (read_bytes < 1) {
+        printf(strerror(errno), NULL);
+        printf("\n");
         return 1;
     }
     return 0;

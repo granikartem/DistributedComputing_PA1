@@ -1,7 +1,6 @@
 #include "logging.h"
 
 void log_pipe_opening(FILE * pipe_file, int start, int dst){
-    printf(log_pipe_opened_fmt, start, getpid(), dst);
     fprintf(pipe_file, log_pipe_opened_fmt, start, getpid(), dst);
 }
 

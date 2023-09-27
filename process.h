@@ -19,7 +19,6 @@ typedef struct {
     local_id ld;
     local_id size;
     FILE * events_log;
-    FILE * pipes_log;
 } ProcessDescription;
 
 #endif //PA1_PROCESS_H

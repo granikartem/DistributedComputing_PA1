@@ -16,7 +16,8 @@ ProcessDescription init_process_description(local_id n){
     pd.ld = 0;
     pd.size = n + 1;
     pd.events_log = fopen(events_log, "a+");
-    pd.pipes_log = fopen(pipes_log, "a+");
+    FILE * pipe_log;
+    pipe_log = fopen(pipes_log, "a+");
     pd.pipes = (my_pipe ** ) malloc(sizeof(my_pipe *) * (n + 1));
     for(int i = 0; i < n + 1; i++){
         pd.pipes[i] = (my_pipe *) malloc(sizeof(my_pipe) * (n + 1));
@@ -27,17 +28,81 @@ ProcessDescription init_process_description(local_id n){
                 int p[2];
                 if(pipe(p) == 0) {
                     pd.pipes[i][j].read = p[0];
-                    pd.pipes[i][j].read = p[1];
-                    log_pipe_opening(pd.pipes_log, i, j);
+                    pd.pipes[i][j].write = p[1];
+                    log_pipe_opening(pipe_log, i, j);
                 }else{
                     exit(1);
                 }
             }
         }
     }
+    fclose(pipe_log);
     return pd;
 }
 
+void close_unused_pipes(ProcessDescription * pd){
+    local_id n = pd->size;
+    local_id ld = pd->ld;
+    for(local_id i = 0; i < n; i++){
+        for (local_id j = 0; j < n; j++){
+            if(i == ld){
+                close(pd->pipes[i][j].read);
+            }else if(j == ld){
+                close(pd->pipes[i][j].write);
+            }else{
+                close(pd->pipes[i][j].read);
+                close(pd->pipes[i][j].write);
+            }
+        }
+    }
+}
+
+void close_used_pipes(ProcessDescription * pd){
+    local_id n = pd->size;
+    local_id ld = pd->ld;
+    for(local_id i = 0; i < n; i++){
+        for (local_id j = 0; j < n; j++){
+            if(i == ld){
+                close(pd->pipes[i][j].write);
+            }else if(j == ld){
+                close(pd->pipes[i][j].read);
+            }
+        }
+        free(pd->pipes[i]);
+    }
+    free(pd->pipes);
+}
+void child_routine(ProcessDescription pd){
+    //close_unused_pipes(&pd);
+    log_process_startup(&pd);
+    send_everyone(STARTED, &pd);
+    receive_from_everyone(STARTED, &pd);
+    log_start_message_receival(&pd);
+    log_process_completion(&pd);
+    send_everyone(DONE, &pd);
+    receive_from_everyone(DONE, &pd);
+    log_completion_message_receival(&pd);
+    //close_used_pipes(&pd);
+    fclose(pd.events_log);
+    exit(0);
+}
+
+void parent_routine(ProcessDescription pd){
+    close_unused_pipes(&pd);
+    receive_from_everyone(STARTED, &pd);
+    log_start_message_receival(&pd);
+    receive_from_everyone(DONE, &pd);
+    log_completion_message_receival(&pd);
+    int status;
+    pid_t pid;
+    pid = wait(&status);
+    while(pid > 0){
+        printf("child %d ended with exit code %d\n", pid, status);
+        pid = wait(&status);
+    }
+    close_used_pipes(&pd);
+    fclose(pd.events_log);
+}
 void send_everyone(MessageType msg_type, ProcessDescription * pd){
     MessageHeader header ={.s_magic = MESSAGE_MAGIC, .s_type = msg_type};
     Message msg = {.s_header = header};
@@ -56,16 +121,13 @@ void receive_from_everyone(MessageType msg_type, ProcessDescription * pd){
     for(local_id i = 1; i < n; i++){
         if(i != pd->ld){
             Message msg;
-            receive(pd, i, &msg);
+            if(receive(pd, i, &msg)){
+                printf("process %d failed to receive message from %d\n", pd->ld, i);
+                exit(1);
+            }
             if(msg.s_header.s_type != msg_type){
                 printf("wrong message type\n");
-                if(msg.s_header.s_type == STARTED){
-                    printf("STARTED\n");
-                }else if(msg.s_header.s_type == STARTED == DONE){
-                    printf("DONE\n");
-                }else{
-                    printf("nothing\n");
-                }
+                exit(1);
             }
         }
     }

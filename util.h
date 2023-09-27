@@ -1,7 +1,3 @@
-//
-// Created by ubuntu on 9/26/23.
-//
-
 #ifndef PA1_UTIL_H
 #define PA1_UTIL_H
 
@@ -9,14 +5,20 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <wait.h>
 #include "process.h"
-#include "child.h"
 #include "common.h"
 #include "logging.h"
 
 local_id parse(int argc, char* argv[]);
 
 ProcessDescription init_process_description(local_id n);
+
+void close_unused_pipes(ProcessDescription * pd);
+
+void child_routine(ProcessDescription pd);
+
+void parent_routine(ProcessDescription pd);
 
 void send_everyone(MessageType msg_type, ProcessDescription * pd);
 

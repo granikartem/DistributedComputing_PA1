@@ -8,8 +8,6 @@ add_executable(pa1 main.c
         ipc.c
         logging.h
         logging.c
-        child.c
-        child.h
         process.h
         util.c
         util.h
