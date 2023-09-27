@@ -68,12 +68,12 @@ void close_used_pipes(ProcessDescription * pd){
                 close(pd->pipes[i][j].read);
             }
         }
-        free(pd->pipes[i]);
+        //free(pd->pipes[i]);
     }
-    free(pd->pipes);
+    //free(pd->pipes);
 }
 void child_routine(ProcessDescription pd){
-    //close_unused_pipes(&pd);
+    close_unused_pipes(&pd);
     log_process_startup(&pd);
     send_everyone(STARTED, &pd);
     receive_from_everyone(STARTED, &pd);
@@ -82,30 +82,35 @@ void child_routine(ProcessDescription pd){
     send_everyone(DONE, &pd);
     receive_from_everyone(DONE, &pd);
     log_completion_message_receival(&pd);
-    //close_used_pipes(&pd);
+    close_used_pipes(&pd);
     fclose(pd.events_log);
     exit(0);
 }
 
-void parent_routine(ProcessDescription pd){
+int parent_routine(ProcessDescription pd){
     close_unused_pipes(&pd);
     receive_from_everyone(STARTED, &pd);
     log_start_message_receival(&pd);
     receive_from_everyone(DONE, &pd);
     log_completion_message_receival(&pd);
     int status;
+    int exit_code = 0;
     pid_t pid;
     pid = wait(&status);
     while(pid > 0){
         printf("child %d ended with exit code %d\n", pid, status);
+        if(status != 0){
+            exit_code = 1;
+        }
         pid = wait(&status);
     }
     close_used_pipes(&pd);
     fclose(pd.events_log);
+    return exit_code;
 }
 void send_everyone(MessageType msg_type, ProcessDescription * pd){
-    MessageHeader header ={.s_magic = MESSAGE_MAGIC, .s_type = msg_type};
-    Message msg = {.s_header = header};
+    MessageHeader header = {.s_magic = MESSAGE_MAGIC, .s_type = msg_type};
+    Message msg;
     int len = 0;
     if(msg_type == STARTED){
         len = sprintf(msg.s_payload, log_started_fmt, pd->ld, getpid(), getppid());
@@ -113,7 +118,11 @@ void send_everyone(MessageType msg_type, ProcessDescription * pd){
         len = sprintf(msg.s_payload, log_done_fmt, pd->ld);
     }
     header.s_payload_len = len;
-    send_multicast(pd, &msg);
+    msg.s_header = header;
+    if(send_multicast(pd, &msg)){
+        printf("multicast error\n");
+        exit(1);
+    }
 }
 
 void receive_from_everyone(MessageType msg_type, ProcessDescription * pd){

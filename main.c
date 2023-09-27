@@ -11,7 +11,8 @@ int main(int argc, char* argv[]) {
         switch(fork()){
             case 0:
                 pd.ld = i;
-                child_routine(pd);
+                ProcessDescription child_pd = {.pipes = pd.pipes, .events_log = pd.events_log, .ld = i, .size = pd.size};
+                child_routine(child_pd);
             case -1:
                 printf("error\n");
                 exit(1);
@@ -19,8 +20,7 @@ int main(int argc, char* argv[]) {
                 break;
         }
     }
-    parent_routine(pd);
-    return 0;
+    return parent_routine(pd);
 }
 
 

@@ -18,7 +18,7 @@ void close_unused_pipes(ProcessDescription * pd);
 
 void child_routine(ProcessDescription pd);
 
-void parent_routine(ProcessDescription pd);
+int parent_routine(ProcessDescription pd);
 
 void send_everyone(MessageType msg_type, ProcessDescription * pd);
 
