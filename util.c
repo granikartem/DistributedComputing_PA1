@@ -1,3 +1,5 @@
+#include <string.h>
+#include <errno.h>
 #include "util.h"
 
 local_id parse(int argc, char* argv[]){
@@ -46,12 +48,12 @@ void close_unused_pipes(ProcessDescription * pd){
     for(local_id i = 0; i < n; i++){
         for (local_id j = 0; j < n; j++){
             if(i == ld){
-                close(pd->pipes[i][j].read);
+                if(close(pd->pipes[i][j].read)) exit(1);
             }else if(j == ld){
-                close(pd->pipes[i][j].write);
-            }else{
-                close(pd->pipes[i][j].read);
-                close(pd->pipes[i][j].write);
+                if(close(pd->pipes[i][j].write)) exit(1);
+            }else if(i != j){
+                if(close(pd->pipes[i][j].read)) exit(1);
+                if(close(pd->pipes[i][j].write)) exit(1);
             }
         }
     }
@@ -61,16 +63,15 @@ void close_used_pipes(ProcessDescription * pd){
     local_id n = pd->size;
     local_id ld = pd->ld;
     for(local_id i = 0; i < n; i++){
-        for (local_id j = 0; j < n; j++){
-            if(i == ld){
-                close(pd->pipes[i][j].write);
-            }else if(j == ld){
-                close(pd->pipes[i][j].read);
-            }
+        if(i != ld){
+            if(close(pd->pipes[ld][i].write)) exit(2);
+            if(close(pd->pipes[i][ld].read)) exit(2);
         }
-        //free(pd->pipes[i]);
     }
-    //free(pd->pipes);
+    for(local_id i = 0; i < n; i++){
+        free(pd->pipes[i]);
+    }
+    free(pd->pipes);
 }
 void child_routine(ProcessDescription pd){
     close_unused_pipes(&pd);
@@ -98,7 +99,6 @@ int parent_routine(ProcessDescription pd){
     pid_t pid;
     pid = wait(&status);
     while(pid > 0){
-        printf("child %d ended with exit code %d\n", pid, status);
         if(status != 0){
             exit_code = 1;
         }
@@ -108,6 +108,7 @@ int parent_routine(ProcessDescription pd){
     fclose(pd.events_log);
     return exit_code;
 }
+
 void send_everyone(MessageType msg_type, ProcessDescription * pd){
     MessageHeader header = {.s_magic = MESSAGE_MAGIC, .s_type = msg_type};
     Message msg;
@@ -135,6 +136,7 @@ void receive_from_everyone(MessageType msg_type, ProcessDescription * pd){
                 exit(1);
             }
             if(msg.s_header.s_type != msg_type){
+                printf("process %d failed to receive message from %d\n", pd->ld, i);
                 printf("wrong message type\n");
                 exit(1);
             }

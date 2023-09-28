@@ -5,6 +5,7 @@
 #include "util.h"
 
 int main(int argc, char* argv[]) {
+
     local_id n = parse(argc, argv);
     ProcessDescription pd = init_process_description(n);
     for(local_id i = 1; i <= n;  i++){
@@ -14,7 +15,7 @@ int main(int argc, char* argv[]) {
                 ProcessDescription child_pd = {.pipes = pd.pipes, .events_log = pd.events_log, .ld = i, .size = pd.size};
                 child_routine(child_pd);
             case -1:
-                printf("error\n");
+                printf("Error spawning child process\n");
                 exit(1);
             default:
                 break;

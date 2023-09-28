@@ -1,5 +1,3 @@
-#include <string.h>
-#include <errno.h>
 #include "ipc.h"
 #include "process.h"
 
@@ -14,7 +12,7 @@
  */
 int send(void * self, local_id dst, const Message * msg){
     ProcessDescription * pd = (ProcessDescription *) self;
-    if (write(pd->pipes[pd->ld][dst].write, msg, sizeof(MessageHeader) + msg->s_header.s_payload_len) == -1) {
+    if (write(pd->pipes[pd->ld][dst].write, msg, sizeof(MessageHeader) + msg->s_header.s_payload_len) <= 0) {
         return 1;
     }
     return 0;
@@ -56,12 +54,8 @@ int send_multicast(void * self, const Message * msg){
  */
 int receive(void * self, local_id from, Message * msg){
     ProcessDescription * pd = (ProcessDescription *) self;
-    int read_bytes = read(pd->pipes[from][pd->ld].read, msg, MAX_MESSAGE_LEN);
-    if (read_bytes < 1) {
-        printf(strerror(errno), NULL);
-        printf("\n");
-        return 1;
-    }
+    if(read(pd->pipes[from][pd->ld].read, &msg->s_header, sizeof(MessageHeader)) < 0) return 1;
+    if(read(pd->pipes[from][pd->ld].read, msg->s_payload, msg->s_header.s_payload_len) < 0) return 1;
     return 0;
 }
 

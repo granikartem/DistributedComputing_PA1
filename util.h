@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <getopt.h>
 #include <wait.h>
 #include "process.h"
 #include "common.h"
